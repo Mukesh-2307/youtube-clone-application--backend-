@@ -21,5 +21,14 @@ import connectToDB from "./db/index.js";
 dotenv.config({
     path: './env'
 })
+const app = express()
 
 connectToDB()
+.then(()=>{
+    app.listen(process.env.PORT || 8000,()=>{
+        console.log("DB is working fine !!!")
+    })
+})
+.catch((err)=>{
+    console.log("unable to connect to the DB", err)
+})
