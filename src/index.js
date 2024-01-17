@@ -1,9 +1,10 @@
 // require('dotenv').config({path: './env'})  <--- older version
 
 // new version of dealing with dotenv
+// import express from "express";
 import dotenv from "dotenv"
-import express from "express";
 import connectToDB from "./db/index.js";
+import {app} from "./app.js"
 
 // first approach to connect to DB
 // const app = express()
@@ -21,7 +22,6 @@ import connectToDB from "./db/index.js";
 dotenv.config({
     path: './env'
 })
-const app = express()
 
 connectToDB()
 .then(()=>{
@@ -31,4 +31,4 @@ connectToDB()
 })
 .catch((err)=>{
     console.log("unable to connect to the DB", err)
-})
+}) 
