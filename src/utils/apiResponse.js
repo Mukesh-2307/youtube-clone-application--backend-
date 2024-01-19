@@ -4,6 +4,7 @@ class apiResponse extends Response {
         data,
         message = "success"
     ){
+        super(statusCode)
         this.statusCode = statusCode
         this.data = data
         this.message = message

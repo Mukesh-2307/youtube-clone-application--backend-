@@ -11,20 +11,21 @@ const registerUser = asyncHandler(async(req,res)=>{
 
     // take inputs from users thorugh frontend
     const {userName,email,fullName,password} = req.body
-    console.log("username: ",userName,"password: ",password)
+    // console.log("username: ",userName,"password: ",password)
+
     // perform checks or validation
     // if(fullName === ""){
     //     throw new apiError(400,"fullname is required")
     // }
     if(
-        [fullName,email,userName,password].some((field)=>{
+        [fullName,email,userName,password].some((field) => {
             field?.trim()===""
         })
     ){
         throw new apiError(400,"all fields are required")
     }
 
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or:[{userName},{email}]
     })
 
@@ -36,8 +37,13 @@ const registerUser = asyncHandler(async(req,res)=>{
     // check for images, check for avatar
     const avatarLocalPath = req.files?.avatar[0]?.path
     console.log(avatarLocalPath)
-    const coverImageLocalPath = req.files?.coverImage[0]?.path
-    console.log(coverImageLocalPath)
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path
+    // console.log(coverImageLocalPath)
+
+    let coverImageLocalPath;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+        coverImageLocalPath = req.files.coverImage[0].path;
+    }
 
     if(!avatarLocalPath){
         throw new apiError(400, "avatar file is required")
@@ -52,15 +58,15 @@ const registerUser = asyncHandler(async(req,res)=>{
         throw new apiError(400,"avatar is required")
     }
 
-    if(!cover){
-        throw new apiError(400,"avatar is required")
-    }
+    // if(!cover){
+    //     throw new apiError(400,"cover is required")
+    // }
 
     // create user obj - create entry in DB
     const user = await User.create({
         fullName,
         avatar: avatar.url,
-        coverImage: coverImage?.url || "",
+        coverImage: cover?.url || "",
         email,
         password,
         userName: userName.toLowerCase()
