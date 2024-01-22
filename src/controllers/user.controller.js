@@ -3,6 +3,7 @@ import{apiError} from "../utils/apiErrors.js"
 import{apiResponse} from "../utils/apiResponse.js"
 import {User} from "../models/user.model.js"
 import { uploadOnCloud } from "../utils/cloudinary.js"
+import jwt from "jsonwebtoken"
 
 const generateSktTknAndAccTkn = async (userId)=>{
     try {
@@ -108,7 +109,7 @@ const loginUser = asyncHandler(async(req,res)=>{
     // take inputs from user 
     const {email, userName, password} = req.body
 
-    console.log(userName,email)
+    // console.log(userName,email)
 
     // email based or username based
     if(!userName && !email){
@@ -135,7 +136,7 @@ const loginUser = asyncHandler(async(req,res)=>{
         throw new apiError(401,"invalid user credentials")
     }
 
-    console.log(user._id)
+    // console.log(user._id)
 
     // if password is correct, then provide access and refresh token
     const {accessToken,refreshToken} = await generateSktTknAndAccTkn(user._id)
@@ -165,9 +166,49 @@ const logoutUser = asyncHandler(async(req,res)=>{
         secure: true
     }
 
-    return res.status(200).clearCookies("accesstToken", options).clearCookies("refreshToken",options)
+    return res.status(200).clearCookie("accesstToken", options).clearCookie("refreshToken",options)
     .json(
         new apiResponse(200, {}, "user logged out successfully")
     )
 })
-export {registerUser,loginUser,logoutUser}
+
+const refreshAccessToken = asyncHandler(async (req,res)=>{
+    const incomingRefToken = req.cookies.refreshToken || req.body.refreshToken
+
+    if(!incomingRefToken){
+        throw new apiError(401,"unauthorized request")
+    }
+
+    try {
+        const decodedToken = jwt.verify(incomingRefToken,process.env.REFRESH_TOKEN_SECRET)
+    
+        const user = User.findById(decodedToken?._id)
+    
+        if(!user){
+            throw new apiError(401, "invalid refresh token")
+        }
+    
+        if (incomingRefToken !== user?.refreshToken){
+            throw new apiError(401, "refresh token is expired or used")
+        }
+    
+        const options = {
+            httpOnly: true,
+            secure: true
+        }
+    
+        const {accessToken,newRefreshToken} = await generateSktTknAndAccTkn(user._id)
+            
+        return res.status(200)
+        .cookie("accessToken",accessToken,options)
+        .cookie("refreshToken",newRefreshToken,options)
+        .json(
+            new apiResponse(200,{accessToken,refreshToken: newRefreshToken},
+                "access token refreshed")
+        )
+    } catch (error) {
+        throw new apiError(500,error?.message || "something went wrong while updating refresh token")
+    }
+
+})
+export {registerUser,loginUser,logoutUser,refreshAccessToken}
