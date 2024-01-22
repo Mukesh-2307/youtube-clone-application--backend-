@@ -4,6 +4,22 @@ import{apiResponse} from "../utils/apiResponse.js"
 import {User} from "../models/user.model.js"
 import { uploadOnCloud } from "../utils/cloudinary.js"
 
+const generateSktTknAndAccTkn = async (userId)=>{
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({validateBeforeSave: false})
+
+        return {accessToken,refreshToken}
+
+    } catch (error) {
+        throw new apiError(500,"something went wrong while generating tokens.")
+    }
+}
+
 const registerUser = asyncHandler(async(req,res)=>{
     // res.status(200).json({
     //     message: "api working properly"
@@ -88,4 +104,70 @@ const registerUser = asyncHandler(async(req,res)=>{
 
 })
 
-export {registerUser}
+const loginUser = asyncHandler(async(req,res)=>{
+    // take inputs from user 
+    const {email, userName, password} = req.body
+
+    console.log(userName,email)
+
+    // email based or username based
+    if(!userName && !email){
+        throw new apiError(400,"username or email is required")
+    }
+    
+    // find user
+    // check whether user exist or not 
+    const user = await User.findOne({
+        $or: [{userName},{email}]
+    })
+    
+    // if do not exist the redirect to signup page
+    if(!user){
+        throw new apiError(404,"user does not exist")
+    }
+
+    // console.log(user)
+    // if exist check for password 
+    const isPasswordCorrect = await user.isPasswordCorrect(password)
+
+    // if password is wrong, then reenter password
+    if(!isPasswordCorrect){
+        throw new apiError(401,"invalid user credentials")
+    }
+
+    console.log(user._id)
+
+    // if password is correct, then provide access and refresh token
+    const {accessToken,refreshToken} = await generateSktTknAndAccTkn(user._id)
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+    return res.status(200)
+    .cookie("accessToken",accessToken,options)
+    .cookie("refreshToken",refreshToken,options)
+    .json(
+        new apiResponse(200,{user: loggedInUser,accessToken,refreshToken},"user loggedin successfully")
+    )
+})
+
+const logoutUser = asyncHandler(async(req,res)=>{
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {$set:{refreshToken: undefined}},
+        {new: true}
+    )
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res.status(200).clearCookies("accesstToken", options).clearCookies("refreshToken",options)
+    .json(
+        new apiResponse(200, {}, "user logged out successfully")
+    )
+})
+export {registerUser,loginUser,logoutUser}

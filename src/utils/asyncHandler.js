@@ -14,10 +14,7 @@
 // Method 2: the below code is a async handler by directly dealing with the promises
 const asyncHandler = (requestHandler) => {
     return (req, res, next) => {
-        Promise.resolve(requestHandler(req, res, next))
-        .catch(
-            (err) => next(err)
-        )
+        Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err))
     }
 }
 
